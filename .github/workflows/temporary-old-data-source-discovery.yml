@@ -1,0 +1,31 @@
+name: Temporary old data-source discovery
+on:
+  push:
+    branches: [main]
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect old public deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://seen-it.onrender.com"
+          curl -L -sS --retry 8 --retry-delay 5 --retry-all-errors --connect-timeout 30 --max-time 180 "$base/" -o /tmp/index.html
+          echo "OLD_HOME_STATUS_OK"
+          grep -oE 'src="[^"]+\.js[^"]*"' /tmp/index.html | sed -E 's/^src="//;s/"$//' | sort -u > /tmp/scripts.txt || true
+          cat /tmp/scripts.txt
+          : > /tmp/alljs.txt
+          while IFS= read -r src; do
+            case "$src" in
+              http*) url="$src" ;;
+              /*) url="$base$src" ;;
+              *) url="$base/$src" ;;
+            esac
+            curl -L -sS --retry 3 --retry-all-errors --max-time 120 "$url" >> /tmp/alljs.txt || true
+            printf '\n' >> /tmp/alljs.txt
+          done < /tmp/scripts.txt
+          echo "DISCOVERED_URLS"
+          grep -oE 'https://[^"'"'"'[:space:]\\]+' /tmp/alljs.txt | sort -u | grep -Ei 'catalog|overview|supabase|storage|render|r2|cloud|data' | head -200 || true
+          echo "CATALOG_CONTEXT"
+          grep -oE '.{0,180}(catalog\.json|overviews\.json).{0,300}' /tmp/alljs.txt | head -50 || true
