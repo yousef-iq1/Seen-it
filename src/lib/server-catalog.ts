@@ -7,6 +7,17 @@ import { featurize } from "@/lib/engine/features";
 import type { CandidateItem } from "@/lib/engine/recommend";
 import type { Title } from "@/lib/types";
 import { normalise } from "@/lib/search-core";
+type SeenItCatalogRuntimeCache = {
+    data: EncodedCatalog;
+    byId: Map<string, number>;
+    searchHay: string[];
+    fameOrder: number[];
+};
+
+declare global {
+    var __seenItCatalogRuntime: SeenItCatalogRuntimeCache | undefined;
+}
+
 let encodedPromise: Promise<EncodedCatalog> | null = null;
 let byId: Map<string, number> | null = null;
 let searchHay: string[] | null = null;
@@ -16,24 +27,77 @@ function idAt(data: EncodedCatalog, i: number): string {
     return `${row[1] === 1 ? "tv" : "movie"}-${row[0]}`;
 }
 async function getEncoded(): Promise<EncodedCatalog> {
+    const shared = globalThis.__seenItCatalogRuntime;
+    if (shared) {
+        byId = shared.byId;
+        searchHay = shared.searchHay;
+        fameOrder = shared.fameOrder;
+        return shared.data;
+    }
+
     encodedPromise ??= (async () => {
-        const raw = await readFile(join(process.cwd(), "public", "catalog.json"), "utf8");
+        const dataBase = (process.env.NEXT_PUBLIC_DATA_BASE_URL ?? "").replace(/\/$/, "");
+        const remoteUrl = process.env.SEEN_IT_CATALOG_URL ?? (dataBase ? `${dataBase}/catalog.json` : "");
+        let raw: string;
+        if (remoteUrl) {
+            const response = await fetch(remoteUrl, { cache: "force-cache" });
+            if (!response.ok)
+                throw new Error(`catalog ${response.status}`);
+            raw = await response.text();
+        } else {
+            raw = await readFile(join(process.cwd(), "public", "catalog.json"), "utf8");
+        }
         const data = JSON.parse(raw) as EncodedCatalog;
         byId = new Map();
-        searchHay = new Array(data.t.length);
-        fameOrder = Array.from({ length: data.t.length }, (_, i) => i);
         for (let i = 0; i < data.t.length; i++) {
-            const row = data.t[i];
-            const en = row[2];
-            const ar = row[3] || en;
-            const original = row[17] || "";
             byId.set(idAt(data, i), i);
-            searchHay[i] = `${normalise(en)} ${normalise(ar)} ${normalise(original)}`;
         }
-        fameOrder.sort((a, b) => data.t[b][12] - data.t[a][12]);
+
+        let loadedPrebuiltIndex = false;
+        if (!remoteUrl) {
+            try {
+                const indexRaw = await readFile(join(process.cwd(), "public", "catalog-search-index.json"), "utf8");
+                const index = JSON.parse(indexRaw) as { v?: number; h?: unknown; f?: unknown };
+                if (index.v === 1 &&
+                    Array.isArray(index.h) &&
+                    index.h.length === data.t.length &&
+                    Array.isArray(index.f) &&
+                    index.f.length === data.t.length) {
+                    searchHay = index.h as string[];
+                    fameOrder = index.f as number[];
+                    loadedPrebuiltIndex = true;
+                }
+            }
+            catch {
+                // Fall back to building the index at runtime.
+            }
+        }
+
+        if (!loadedPrebuiltIndex) {
+            searchHay = new Array(data.t.length);
+            fameOrder = Array.from({ length: data.t.length }, (_, i) => i);
+            for (let i = 0; i < data.t.length; i++) {
+                const row = data.t[i];
+                const en = row[2];
+                const ar = row[3] || en;
+                const original = row[17] || "";
+                searchHay[i] = `${normalise(en)} ${normalise(ar)} ${normalise(original)}`;
+            }
+            fameOrder.sort((a, b) => data.t[b][12] - data.t[a][12]);
+        }
+        globalThis.__seenItCatalogRuntime = {
+            data,
+            byId: byId!,
+            searchHay: searchHay!,
+            fameOrder: fameOrder!,
+        };
         return data;
     })();
     return encodedPromise;
+}
+
+export async function warmServerCatalog(): Promise<void> {
+    await getEncoded();
 }
 function decodeOne(data: EncodedCatalog, i: number): Title | undefined {
     return decodeRange(data, i, i + 1)[0];

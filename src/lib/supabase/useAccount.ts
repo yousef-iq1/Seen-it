@@ -14,7 +14,8 @@ export type AccountState = {
     error: string | null;
     notice: string | null;
     sync: SyncState;
-    signInWithGoogle: () => Promise<void>;
+    signInWithEmail: (email: string, password: string) => Promise<boolean>;
+    signUpWithEmail: (email: string, password: string) => Promise<boolean>;
     signOut: () => Promise<void>;
 };
 const AccountContext = createContext<AccountState | null>(null);
@@ -217,24 +218,67 @@ function useAccountController(): AccountState {
             unsub();
         };
     }, [userId, reconciledUser]);
-    const signInWithGoogle = useCallback(async () => {
+    const signInWithEmail = useCallback(async (email: string, password: string) => {
         const supabase = getSupabase();
         if (!supabase)
-            return;
+            return false;
         setBusy(true);
         setError(null);
         setNotice(null);
-        const { error: authError } = await supabase.auth.signInWithOAuth({
-            provider: "google",
-            options: {
-                redirectTo: typeof window !== "undefined"
-                    ? `${window.location.origin}${window.location.pathname}${window.location.search}`
-                    : undefined,
-            },
-        });
-        if (authError)
-            setError(authError.message);
-        setBusy(false);
+        try {
+            const { error: authError } = await supabase.auth.signInWithPassword({
+                email: email.trim(),
+                password,
+            });
+            if (authError)
+                throw authError;
+            return true;
+        }
+        catch (e) {
+            setError(e instanceof Error ? e.message : "Could not sign in.");
+            return false;
+        }
+        finally {
+            setBusy(false);
+        }
+    }, []);
+    const signUpWithEmail = useCallback(async (email: string, password: string) => {
+        const supabase = getSupabase();
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+        if (!supabase || !supabaseUrl || !publishableKey)
+            return false;
+        setBusy(true);
+        setError(null);
+        setNotice(null);
+        try {
+            const response = await fetch(`${supabaseUrl}/functions/v1/register-user`, {
+                method: "POST",
+                headers: {
+                    "content-type": "application/json",
+                    "apikey": publishableKey,
+                },
+                body: JSON.stringify({ email: email.trim(), password }),
+            });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok)
+                throw new Error(typeof body?.message === "string" ? body.message : "Could not create the account.");
+            const { error: authError } = await supabase.auth.signInWithPassword({
+                email: email.trim(),
+                password,
+            });
+            if (authError)
+                throw authError;
+            setNotice("account_created");
+            return true;
+        }
+        catch (e) {
+            setError(e instanceof Error ? e.message : "Could not create the account.");
+            return false;
+        }
+        finally {
+            setBusy(false);
+        }
     }, []);
     const signOut = useCallback(async () => {
         const supabase = getSupabase();
@@ -265,7 +309,8 @@ function useAccountController(): AccountState {
         busy,
         error,
         notice,
-        signInWithGoogle,
+        signInWithEmail,
+        signUpWithEmail,
         signOut,
     };
 }

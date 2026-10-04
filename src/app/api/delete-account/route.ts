@@ -4,9 +4,8 @@ import { createClient } from "@supabase/supabase-js";
 export async function POST(request: Request) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  const secretKey = process.env.SUPABASE_SECRET_KEY;
 
-  if (!supabaseUrl || !publishableKey || !secretKey) {
+  if (!supabaseUrl || !publishableKey) {
     return NextResponse.json({ error: "server_not_configured" }, { status: 503 });
   }
 
@@ -26,10 +25,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "not_signed_in" }, { status: 401 });
   }
 
-  const adminClient = createClient(supabaseUrl, secretKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { error: deleteError } = await adminClient.auth.admin.deleteUser(identity.user.id);
+  const { error: deleteError } = await userClient.rpc("delete_own_account");
   if (deleteError) {
     return NextResponse.json({ error: deleteError.message }, { status: 500 });
   }

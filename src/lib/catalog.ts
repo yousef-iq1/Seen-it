@@ -45,6 +45,9 @@ async function decodeSpread(data: EncodedCatalog): Promise<Title[]> {
     return out;
 }
 function assetUrl(path: string): string {
+    const dataBase = (process.env.NEXT_PUBLIC_DATA_BASE_URL ?? "").replace(/\/$/, "");
+    if (dataBase && (path === "/catalog.json" || path === "/overviews.json"))
+        return `${dataBase}${path}`;
     const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
     return `${base}${path}`;
 }
