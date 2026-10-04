@@ -5,71 +5,41 @@
 - GitHub repository
 - Render Web Service
 - Supabase project
-- Google Cloud OAuth client for Sign in with Google
 
-## 1. Create the Supabase project
+## Supabase
 
-Create a fresh Supabase project for this portfolio copy.
+Apply `supabase/SETUP.sql`, create a public bucket for the catalog assets, and deploy the registration function used by the application.
 
-Open **SQL Editor**, paste the entire contents of `supabase/SETUP.sql`, and run it once.
-
-## 2. Get the API values
-
-From the Supabase project **Connect** / API keys area, copy:
-
-- Project URL → `NEXT_PUBLIC_SUPABASE_URL`
-- Publishable key (`sb_publishable_...`) → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-- Secret key (`sb_secret_...`) → `SUPABASE_SECRET_KEY`
-
-The secret key is server-only. Never commit it or expose it to browser code.
-
-## 3. Deploy to Render
-
-Create a Render Web Service from the GitHub repository.
-
-- Runtime: Node
-- Build command: `npm install && npm run build`
-- Start command: `npm start`
-
-Add these environment variables:
+The browser needs:
 
 ```text
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
-SUPABASE_SECRET_KEY=...
+NEXT_PUBLIC_DATA_BASE_URL=...
+SEEN_IT_CATALOG_URL=...
 ```
 
-The site can boot without Supabase in guest mode, but accounts, cross-device sync, sharing, and permanent account deletion require these values.
+The app uses email/password authentication. Registration creates an immediately active account through a rate-limited server-side Supabase function; no email-verification step is required. Account deletion uses an authenticated database RPC.
 
-## 4. Configure Google sign-in
+## Render
 
-In Google Auth Platform, create a **Web application** OAuth client.
+Create a Node web service from this repository.
 
-Use the production Render origin as an Authorized JavaScript origin, for example:
+- Runtime: Node
+- Build command: `npm install && npm run build`
+- Start command: `npm start`
+- Node: 22
 
-```text
-https://your-service.onrender.com
-```
+The production service can run in guest mode if account variables are omitted, but cross-device sync and sharing require Supabase.
 
-In the Google OAuth client, use the Supabase callback URL shown on the Supabase Google provider page as an Authorized redirect URI.
+## Production checks
 
-Then enable the Google provider in Supabase and enter the Google Client ID and Client Secret.
-
-In Supabase **Authentication → URL Configuration**:
-
-- Set the Site URL to the production Render URL.
-- Add the production Render URL to the Redirect URLs list.
-- After the custom domain is connected, add that URL too and make it the Site URL.
-
-## 5. Verify the production copy
-
-Check:
+Verify:
 
 - guest discovery and swiping
-- search and recommendations
+- catalog search and recommendations
 - English and Arabic layouts
-- Google sign-in
-- cloud sync after refresh / another browser session
+- email/password account creation and sign-in
+- cloud sync after refresh
 - public profile and public list links
-- sign out
-- account deletion
+- sign out and account deletion

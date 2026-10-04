@@ -15,5 +15,7 @@ services:
         sync: false
       - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
         sync: false
-      - key: SUPABASE_SECRET_KEY
+      - key: NEXT_PUBLIC_DATA_BASE_URL
+        sync: false
+      - key: SEEN_IT_CATALOG_URL
         sync: false
