@@ -1,31 +1,24 @@
-name: Temporary old data-source discovery
+name: Temporary Seen It data migration
 on:
   push:
     branches: [main]
 jobs:
-  discover:
+  migrate:
     runs-on: ubuntu-latest
     steps:
-      - name: Inspect old public deployment
+      - name: Copy legacy public catalog into new Supabase project
         shell: bash
         run: |
           set -euo pipefail
-          base="https://seen-it.onrender.com"
-          curl -L -sS --retry 8 --retry-delay 5 --retry-all-errors --connect-timeout 30 --max-time 180 "$base/" -o /tmp/index.html
-          echo "OLD_HOME_STATUS_OK"
-          grep -oE 'src="[^"]+\.js[^"]*"' /tmp/index.html | sed -E 's/^src="//;s/"$//' | sort -u > /tmp/scripts.txt || true
-          cat /tmp/scripts.txt
-          : > /tmp/alljs.txt
-          while IFS= read -r src; do
-            case "$src" in
-              http*) url="$src" ;;
-              /*) url="$base$src" ;;
-              *) url="$base/$src" ;;
-            esac
-            curl -L -sS --retry 3 --retry-all-errors --max-time 120 "$url" >> /tmp/alljs.txt || true
-            printf '\n' >> /tmp/alljs.txt
-          done < /tmp/scripts.txt
-          echo "DISCOVERED_URLS"
-          grep -oE 'https://[^"'"'"'[:space:]\\]+' /tmp/alljs.txt | sort -u | grep -Ei 'catalog|overview|supabase|storage|render|r2|cloud|data' | head -200 || true
-          echo "CATALOG_CONTEXT"
-          grep -oE '.{0,180}(catalog\.json|overviews\.json).{0,300}' /tmp/alljs.txt | head -50 || true
+          fn="https://kieglzaewzqogevgraks.supabase.co/functions/v1/migrate-seen-it-data"
+          result=$(curl -L -sS --fail --retry 4 --retry-all-errors --max-time 300 "$fn")
+          echo "$result"
+          echo "$result" | grep -q '"ok":true'
+          base="https://kieglzaewzqogevgraks.supabase.co/storage/v1/object/public/seen-it-data"
+          for file in catalog.json overviews.json; do
+            code=$(curl -L -sS --retry 4 --retry-all-errors --max-time 180 -o /tmp/$file -w "%{http_code}" "$base/$file")
+            bytes=$(wc -c < /tmp/$file)
+            echo "$file STATUS=$code BYTES=$bytes"
+            test "$code" = "200"
+            test "$bytes" -gt 1000000
+          done
