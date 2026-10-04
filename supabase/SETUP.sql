@@ -383,8 +383,6 @@ revoke execute on function public.refresh_co_occurrence()
   from public, anon, authenticated;
 revoke execute on function public.handle_new_user()
   from public, anon, authenticated;
-revoke execute on function public.rls_auto_enable()
-  from public, anon, authenticated;
 
 grant execute on function public.match_titles(extensions.vector, text[], integer)
   to service_role;
@@ -659,3 +657,35 @@ create policy "list items read own"
         and l.user_id = (select auth.uid())
     )
   );
+
+
+create or replace function public.delete_own_account()
+returns void
+language plpgsql
+security definer
+set search_path = auth, public, pg_temp
+as $$
+declare
+  current_user_id uuid;
+begin
+  current_user_id := auth.uid();
+  if current_user_id is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  delete from auth.users where id = current_user_id;
+end;
+$$;
+
+revoke all on function public.delete_own_account() from public, anon;
+grant execute on function public.delete_own_account() to authenticated;
+
+
+create table if not exists public.signup_rate_limits (
+  ip_hash text primary key,
+  window_start timestamptz not null default now(),
+  attempts integer not null default 0
+);
+
+alter table public.signup_rate_limits enable row level security;
+revoke all on table public.signup_rate_limits from public, anon, authenticated;

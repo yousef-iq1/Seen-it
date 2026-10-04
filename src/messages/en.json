@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Seen It · Seen It",
+    "name": "Seen It",
     "tagline": "Everything you have ever watched",
     "language": "العربية"
   },
@@ -162,8 +162,14 @@
     "signOut": "Sign out",
     "syncProblem": "Your history is not reaching the cloud",
     "syncProblemBody": "This device still has your local copy, but changes may not appear on another device. Database error: {error}",
-    "continueGoogle": "Continue with Google",
-    "guest": "Without an account everything stays on this device."
+    "guest": "Without an account everything stays on this device.",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign in",
+    "create": "Create account",
+    "working": "Working…",
+    "created": "Account created. Your library can now sync across devices.",
+    "createHint": "Use at least 8 characters. No email verification is required."
   },
   "data": {
     "title": "Your data",
@@ -218,12 +224,12 @@
   },
   "legal": {
     "title": "Privacy & Terms",
-    "updated": "Last updated 24 September 2026",
+    "updated": "Last updated 1 October 2026",
     "storageTitle": "What is stored, and where",
     "storage1": "Every answer is stored in this browser first. If you sign in, Seen It also synchronizes your swipe rows, lists and taste profile to Supabase so your library can follow you to another device.",
     "storage2": "Seen It stores title identifiers, your answer and its time. It does not have access to your Netflix, Disney+, cinema, or other viewing accounts. If you stay signed out, your library remains local to this browser unless you export a backup.",
     "signinTitle": "Signing in",
-    "signin1": "Sign-in uses Google. Seen It receives the account identity information Google makes available for authentication, such as your name, email address and profile picture. Seen It never receives your Google password.",
+    "signin1": "Accounts use email and password through Supabase Auth. Seen It does not store your plaintext password. New accounts are activated immediately, without an email-verification step.",
     "publicTitle": "What other people can see",
     "public1": "Your private library, dislikes, neutral watched answers, not-watched answers and taste profile are not public.",
     "public2": "If you make your profile public, its public page may show your display name and titles you explicitly liked. Public list links show that list's titles and, unless you hide the owner, your display name. Anyone with a public link can open it.",
