@@ -1,0 +1,755 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────────
+   Seen It design system — bright sky blue on light, the same palette
+   inverted for dark, and a single soft shadow everywhere (no dual-tone
+   glow behind elements). Three verdict colours and nothing else:
+   accent for loved, danger for not-for-me, skip for haven't-seen.
+   ───────────────────────────────────────────────────────────── */
+
+@theme {
+  --color-bg: #f4f7fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #eef2f7;
+  --color-line: #e3e8ef;
+  --color-ink: #1d1d1f;
+  --color-ink-dim: #6e7381;
+  --color-ink-faint: #9aa1ad;
+  --color-accent: #0ea5e9;
+  --color-accent-soft: #38bdf8;
+  --color-danger: #ff4545;
+  /* THE THIRD VERDICT NEEDS A THIRD COLOUR.
+     "Haven't seen it" borrowed the accent's lighter tone, which meant an
+     upward swipe and a rightward one lit the screen in nearly the same blue —
+     and the whole point of colouring the drag is that the colour tells you
+     which answer you are about to give. Violet is the one hue that is
+     unmistakable against both the sky blue and the red while still belonging
+     to the same cool family, so the app does not suddenly acquire a warm
+     accent it uses nowhere else. */
+  --color-skip: #7c6cf5;
+  /* a solid dark used for a couple of controls, and the colour text takes when
+     it sits on the accent — both need to flip with the theme */
+  --color-ink-strong: #3a4150;
+  --color-on-accent: #ffffff;
+
+  /* ── the same colours as raw triplets ─────────────────────────────────
+     Shadows and glows need a colour with an alpha, and `rgba(29, 41, 61,
+     0.08)` written forty-five times is why this file had no dark mode: the
+     palette was tokenised and everything *derived* from it was not. With the
+     triplet in a variable, one override below re-themes every shadow, every
+     ring and every scrim in the app. */
+  --rgb-shadow: 29 41 61;
+  --rgb-accent: 14 165 233;
+  --rgb-surface: 255 255 255;
+  --rgb-scrim: 10 20 30;
+
+  /* ── one motion scale, and nothing invents its own ────────────────────
+     Three durations and three curves. Interfaces read as cheap when every
+     component picks its own timing, because the eye reads the *inconsistency*
+     long before it reads any single animation. These are the only values any
+     component may use.
+
+       quick   a control acknowledging a finger      120ms
+       base    something entering or leaving          220ms
+       slow    a surface or a page changing           380ms
+
+     `--ease-out` for anything arriving, `--ease-in` for anything leaving,
+     `--ease-spring` only where a physical object is being thrown. */
+  --duration-quick: 120ms;
+  --duration-base: 220ms;
+  --duration-slow: 380ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.55, 0, 0.85, 0.35);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --font-sans: var(--font-plex-arabic), var(--font-geist-sans), system-ui,
+    sans-serif;
+  --radius-card: 24px;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   DARK, FOLLOWING THE PHONE.
+
+   No toggle, by request and by judgement: a person who has set their phone to
+   dark has already answered this question, and asking again in-app is a second
+   place for the answer to be wrong. `prefers-color-scheme` is that answer.
+
+   Only the tokens change. Because every shadow, ring and scrim in this file
+   now derives from a triplet above, re-theming the whole app is the sixteen
+   declarations below rather than a second stylesheet — and nothing can drift,
+   because there is no second copy to drift from.
+
+   The dark palette is not the light one inverted. Inverting produces pure
+   black and blown-out white; this keeps a soft near-black ground so posters
+   sit on it without a halo, lifts the surfaces just enough to separate, and
+   dims the accent slightly because a saturated sky blue that reads as crisp on
+   white reads as neon on black.
+   ───────────────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #0f1216;
+    --color-surface: #171b21;
+    --color-surface-2: #1f242c;
+    --color-line: #2a3038;
+    --color-ink: #f2f4f7;
+    --color-ink-dim: #a3abb8;
+    --color-ink-faint: #6f7885;
+    --color-accent: #38bdf8;
+    --color-accent-soft: #7dd3fc;
+    --color-ink-strong: #e6e9ee;
+    --color-skip: #a394ff;
+    --color-on-accent: #06212e;
+    /* shadows go black rather than blue-grey, and lift instead of press */
+    --rgb-shadow: 0 0 0;
+    --rgb-accent: 56 189 248;
+    --rgb-surface: 40 47 57;
+    --rgb-scrim: 0 0 0;
+  }
+}
+
+html {
+  background: var(--color-bg);
+  color-scheme: light dark;
+  /* pull-to-refresh and rubber-banding both steal upward swipes */
+  overscroll-behavior: none;
+}
+
+/* The swipe stage owns every gesture inside it. `touch-action: none` on the
+   card alone was not enough: a drag beginning in the padding around it, or
+   continuing past its edge, was still handed to the page, so swiping "not
+   seen" scrolled the document instead of moving the card. */
+.swipe-stage,
+.swipe-stage * {
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+/* the one exception: the back of a card, where a long synopsis has to scroll.
+   It has to out-specify the rule above, which is why it is written as a
+   descendant rather than as a utility class. */
+.swipe-stage .card-back-scroll {
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  min-height: 100dvh;
+  overscroll-behavior-y: none;
+  /* no double-tap / gesture zoom */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/**
+ * NO iOS LINK MENU ON ANYTHING YOU ARE MEANT TO PRESS.
+ *
+ * The user filmed a tab press doing nothing for several seconds and called it
+ * the most important problem in the app. Cut to frames, the recording shows
+ * Safari's link preview menu opening over the page instead — twice — with no
+ * navigation. Safari raises that menu on a long press of a link, and its timer
+ * is wall-clock: if the main thread is busy when the finger lands, the tap is
+ * handled late and the long-press wins. So a slow frame did not delay a
+ * navigation, it *replaced* it with a context menu.
+ *
+ * The nav carries this inline as well, because that is where he hit it. Here it
+ * covers every other control in the app — a card, a poster tile, a verdict
+ * button — because the same race exists on all of them and a long press means
+ * nothing anywhere in this product.
+ *
+ * Deliberately not applied to `input`, `textarea` or the card's own back face:
+ * selecting and copying text is a real thing to want, and none of those are
+ * links, so none of them can raise the menu in the first place.
+ */
+a,
+button,
+[role="button"],
+summary {
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+
+/* Motion is opt-in, never global.
+   A blanket transition on every button used to fight Framer Motion for
+   transform/opacity/background on iOS. The result was delayed taps and visible
+   "bounce-back" when two animation systems tried to own one property. Controls
+   that need a colour transition already declare transition-colors (or their
+   component animation) explicitly. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+::selection {
+  background: rgb(var(--rgb-accent) / 0.25);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+/* staggered entrance for server-rendered grids (share pages) */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise-in {
+  animation: rise-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* poster bottom fade */
+.card-sheen {
+  background: linear-gradient(
+    to top,
+    rgb(var(--rgb-scrim) / 0.88) 0%,
+    rgb(var(--rgb-scrim) / 0.45) 34%,
+    transparent 62%
+  );
+}
+
+/* ── soft Apple-style card (no glow) ── */
+.soft-card {
+  border-radius: 24px;
+  background: var(--color-surface);
+  box-shadow: 0 8px 24px rgb(var(--rgb-shadow) / 0.08);
+}
+.soft-card-sm {
+  border-radius: 18px;
+  background: var(--color-surface);
+  box-shadow: 0 4px 14px rgb(var(--rgb-shadow) / 0.07);
+}
+.soft-inset {
+  border-radius: 14px;
+  background: var(--color-surface-2);
+  box-shadow: inset 0 1px 3px rgb(var(--rgb-shadow) / 0.08);
+}
+
+/* ── push button — Uiverse.io by ke1221 (presses inset on :active) ── */
+.neu-btn {
+  color: var(--color-ink-dim);
+  padding: 0.7em 1.7em;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 0.6em;
+  background: var(--color-surface);
+  cursor: pointer;
+  border: 1px solid var(--color-line);
+  transition: all 0.3s;
+  box-shadow: 0 4px 12px rgb(var(--rgb-shadow) / 0.08);
+}
+.neu-btn:active,
+.neu-btn[data-pressed="true"] {
+  color: var(--color-ink-faint);
+  transform: scale(0.94);
+  box-shadow:
+    inset 3px 3px 8px rgb(var(--rgb-shadow) / 0.12),
+    inset -3px -3px 8px rgb(var(--rgb-surface) / 0.9);
+}
+.neu-btn[data-pressed="true"] {
+  color: var(--color-accent);
+  border-color: rgb(var(--rgb-accent) / 0.35);
+}
+.neu-btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+.neu-btn-round {
+  padding: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── expanding delete button — Uiverse.io by vinodjangid07 ── */
+.delete-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--color-ink-strong);
+  border: none;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgb(var(--rgb-shadow) / 0.18);
+  cursor: pointer;
+  transition-duration: 0.3s;
+  overflow: hidden;
+  position: relative;
+}
+.delete-btn .delete-svg {
+  width: 11px;
+  transition-duration: 0.3s;
+}
+.delete-btn .delete-svg path {
+  fill: white;
+}
+.delete-btn:hover,
+.delete-btn[data-armed="true"] {
+  width: 112px;
+  border-radius: 50px;
+  transition-duration: 0.3s;
+  background-color: var(--color-danger);
+  align-items: center;
+}
+.delete-btn:hover .delete-svg,
+.delete-btn[data-armed="true"] .delete-svg {
+  width: 40px;
+  transition-duration: 0.3s;
+  transform: translateY(60%);
+}
+.delete-btn::before {
+  position: absolute;
+  top: -20px;
+  content: attr(data-label);
+  color: white;
+  transition-duration: 0.3s;
+  font-size: 2px;
+}
+.delete-btn:hover::before,
+.delete-btn[data-armed="true"]::before {
+  font-size: 12px;
+  opacity: 1;
+  transform: translateY(26px);
+  transition-duration: 0.3s;
+}
+
+/* ── bursting heart — Uiverse.io by catraco (accent blue) ── */
+.heart-container {
+  --heart-color: var(--color-accent);
+  position: relative;
+  width: 50px;
+  height: 50px;
+  transition: 0.3s;
+}
+.heart-container .heart-checkbox {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  z-index: 20;
+  cursor: pointer;
+}
+.heart-container .svg-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.heart-container .svg-outline,
+.heart-container .svg-filled {
+  fill: var(--heart-color);
+  position: absolute;
+  width: 60%;
+}
+.heart-container .svg-filled {
+  animation: keyframes-svg-filled 1s;
+  display: none;
+}
+.heart-container .svg-celebrate {
+  position: absolute;
+  animation: keyframes-svg-celebrate 0.5s;
+  animation-fill-mode: forwards;
+  display: none;
+  stroke: var(--heart-color);
+  fill: var(--heart-color);
+  stroke-width: 2px;
+}
+.heart-container .heart-checkbox:checked ~ .svg-container .svg-filled {
+  display: block;
+}
+.heart-container .heart-checkbox:checked ~ .svg-container .svg-celebrate {
+  display: block;
+}
+@keyframes keyframes-svg-filled {
+  0% {
+    transform: scale(0);
+  }
+  25% {
+    transform: scale(1.2);
+  }
+  50% {
+    transform: scale(1);
+    filter: brightness(1.5);
+  }
+}
+@keyframes keyframes-svg-celebrate {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    opacity: 1;
+    filter: brightness(1.5);
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+    display: none;
+  }
+}
+
+/* ── animated checklist — Uiverse.io by JkHuger (compact size) ── */
+.checklist {
+  --background: var(--color-surface);
+  --text: var(--color-ink-dim);
+  --check: var(--color-accent);
+  --disabled: var(--color-ink-faint);
+  background: var(--background);
+  border-radius: 16px;
+  position: relative;
+  padding: 16px 34px;
+  display: grid;
+  grid-template-columns: 24px auto;
+  align-items: center;
+  row-gap: 12px;
+  box-shadow: 0 4px 14px rgb(var(--rgb-shadow) / 0.07);
+}
+.checklist label {
+  color: var(--text);
+  position: relative;
+  cursor: pointer;
+  display: grid;
+  align-items: center;
+  width: fit-content;
+  transition: color 0.3s ease;
+  margin-inline-end: 12px;
+  font-size: 13px;
+}
+.checklist label::before,
+.checklist label::after {
+  content: "";
+  position: absolute;
+}
+.checklist label::before {
+  height: 2px;
+  width: 6px;
+  inset-inline-start: -22px;
+  background: var(--check);
+  border-radius: 2px;
+  transition: background 0.3s ease;
+}
+.checklist label:after {
+  height: 3px;
+  width: 3px;
+  top: 7px;
+  inset-inline-start: -20px;
+  border-radius: 50%;
+}
+.checklist input[type="checkbox"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  position: relative;
+  height: 12px;
+  width: 12px;
+  outline: none;
+  border: 0;
+  margin: 0;
+  margin-inline-end: 12px;
+  cursor: pointer;
+  background: var(--background);
+  display: grid;
+  align-items: center;
+}
+.checklist input[type="checkbox"]::before,
+.checklist input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  height: 2px;
+  top: auto;
+  background: var(--check);
+  border-radius: 2px;
+}
+.checklist input[type="checkbox"]::before {
+  width: 0px;
+  right: 60%;
+  transform-origin: right bottom;
+}
+.checklist input[type="checkbox"]::after {
+  width: 0px;
+  left: 40%;
+  transform-origin: left bottom;
+}
+.checklist input[type="checkbox"]:checked::before {
+  animation: check-01 0.4s ease forwards;
+}
+.checklist input[type="checkbox"]:checked::after {
+  animation: check-02 0.4s ease forwards;
+}
+.checklist input[type="checkbox"]:checked + label {
+  color: var(--disabled);
+  animation: move 0.3s ease 0.1s forwards;
+}
+.checklist input[type="checkbox"]:checked + label::before {
+  background: var(--disabled);
+  animation: slice 0.4s ease forwards;
+}
+.checklist input[type="checkbox"]:checked + label::after {
+  animation: firework 0.5s ease forwards 0.1s;
+}
+@keyframes move {
+  50% {
+    padding-inline-start: 8px;
+    padding-inline-end: 0px;
+  }
+  100% {
+    padding-inline-end: 4px;
+  }
+}
+@keyframes slice {
+  60% {
+    width: 100%;
+    inset-inline-start: 4px;
+  }
+  100% {
+    width: 100%;
+    inset-inline-start: -2px;
+    padding-inline-start: 0;
+  }
+}
+@keyframes check-01 {
+  0% {
+    width: 3px;
+    top: auto;
+    transform: rotate(0);
+  }
+  50% {
+    width: 0px;
+    top: auto;
+    transform: rotate(0);
+  }
+  51% {
+    width: 0px;
+    top: 7px;
+    transform: rotate(45deg);
+  }
+  100% {
+    width: 4px;
+    top: 7px;
+    transform: rotate(45deg);
+  }
+}
+@keyframes check-02 {
+  0% {
+    width: 3px;
+    top: auto;
+    transform: rotate(0);
+  }
+  50% {
+    width: 0px;
+    top: auto;
+    transform: rotate(0);
+  }
+  51% {
+    width: 0px;
+    top: 7px;
+    transform: rotate(-45deg);
+  }
+  100% {
+    width: 8px;
+    top: 7px;
+    transform: rotate(-45deg);
+  }
+}
+@keyframes firework {
+  0% {
+    opacity: 1;
+    box-shadow:
+      0 0 0 -2px var(--color-accent),
+      0 0 0 -2px var(--color-accent),
+      0 0 0 -2px var(--color-accent),
+      0 0 0 -2px var(--color-accent),
+      0 0 0 -2px var(--color-accent),
+      0 0 0 -2px var(--color-accent);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    box-shadow:
+      0 -12px 0 0px var(--color-accent),
+      11px -6px 0 0px var(--color-accent),
+      11px 6px 0 0px var(--color-accent),
+      0 12px 0 0px var(--color-accent),
+      -11px 6px 0 0px var(--color-accent),
+      -11px -6px 0 0px var(--color-accent);
+  }
+}
+
+/* ── clean input (lenfear23 idea, flat light) ── */
+.neu-input {
+  min-height: 44px;
+  padding: 10px 16px;
+  width: 100%;
+  outline: none;
+  color: var(--color-ink);
+  background: var(--color-surface);
+  box-shadow: 0 4px 14px rgb(var(--rgb-shadow) / 0.07);
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  transition: all 0.3s;
+}
+.neu-input:focus {
+  border-color: rgb(var(--rgb-accent) / 0.55);
+  box-shadow:
+    0 0 0 4px rgb(var(--rgb-accent) / 0.14),
+    0 6px 18px rgb(var(--rgb-accent) / 0.12);
+}
+.neu-input::placeholder {
+  color: var(--color-ink-faint);
+}
+/* room for a leading icon. A Tailwind `ps-*` utility cannot do this: the
+   shorthand `padding` above is unlayered and so wins over the utility layer,
+   which left the icon sitting on top of the placeholder text. */
+.neu-input-search {
+  padding-inline-start: 44px;
+}
+
+/* ── glow CTA button — Uiverse.io by themrsami (sky blue) ── */
+.glow-btn {
+  position: relative;
+  padding: 0.8rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-on-accent);
+  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-soft) 100%);
+  border: none;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  overflow: hidden;
+}
+.glow-btn:hover {
+  box-shadow: 0 8px 24px rgb(var(--rgb-accent) / 0.35);
+}
+.glow-btn:active {
+  transform: scale(0.98);
+}
+.glow-btn > span {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+/* ── rich tooltip — Uiverse.io by themrsami (tooltip part) ── */
+/* ─────────────────────────────────────────────────────────────
+   The explainer panel: a sheet on a phone, an anchored popover with room.
+   See RichTooltip for why this is a sheet rather than smarter positioning.
+   ───────────────────────────────────────────────────────────── */
+.rich-tooltip {
+  position: fixed;
+  z-index: 50;
+  inset-inline: 12px;
+  bottom: calc(86px + env(safe-area-inset-bottom));
+  display: block;
+  animation: tooltip-in var(--duration-base) var(--ease-out);
+}
+
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rich-tooltip-panel {
+  position: relative;
+  padding: 1rem 1.1rem;
+  /* the surface is 96% opaque, so the blur behind it was invisible and paid
+     for anyway — and a backdrop filter is the most expensive thing on this
+     page's budget */
+  background: rgb(var(--rgb-surface) / 0.98);
+  border-radius: 1.15rem;
+  border: 1px solid var(--color-line);
+  box-shadow: 0 12px 40px rgb(var(--rgb-shadow) / 0.22);
+}
+
+/* with room, it goes back to being a popover next to what it explains */
+@media (min-width: 640px) {
+  .rich-tooltip {
+    position: absolute;
+    inset-inline: auto;
+    bottom: auto;
+    top: calc(100% + 10px);
+    inset-inline-start: 0;
+    width: 300px;
+    max-width: min(300px, calc(100vw - 24px));
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   The deck's action row. One material for all five controls — see the note
+   in SwipeDeck for why the symbols stayed and everything around them changed.
+   ───────────────────────────────────────────────────────────── */
+.deck-action {
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--color-ink-dim);
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  box-shadow: 0 2px 10px rgb(var(--rgb-shadow) / 0.06);
+  transition:
+    color var(--duration-quick) var(--ease-out),
+    border-color var(--duration-quick) var(--ease-out),
+    box-shadow var(--duration-quick) var(--ease-out),
+    background-color var(--duration-quick) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.deck-action:disabled {
+  opacity: 0.35;
+}
+
+/* the tint is spent on touch, not at rest: the row stays calm until a finger
+   arrives, and the colour that appears is the verdict about to be given */
+.deck-action:not(:disabled):hover {
+  color: var(--tint);
+  border-color: color-mix(in srgb, var(--tint) 45%, transparent);
+  box-shadow:
+    0 2px 10px rgb(var(--rgb-shadow) / 0.06),
+    0 0 0 4px color-mix(in srgb, var(--tint) 12%, transparent);
+}
+
+/* PRESSED MEANS FILLED — AND DRIVEN BY JAVASCRIPT, NOT BY `:active`.
+   The user's note was that these "don't feel pressed" and that loved and
+   not-for-you both looked blue. A tinted outline is a hint; a button that
+   *becomes* its colour under the thumb is an answer.
+
+   It was `:active`, and on iOS Safari `:active` does not reliably clear when
+   the finger lifts — it clears when something *else* is touched. The user's
+   second recording shows the heart button stuck bright blue for the entire
+   remaining twenty seconds of the video, on card after card. `[data-pressed]`
+   is set on pointerdown and removed on pointerup, pointercancel and pointer
+   leave, so it cannot outlive the finger. */
+.deck-action:not(:disabled)[data-pressed] {
+  color: #fff;
+  background: var(--tint);
+  border-color: var(--tint);
+  box-shadow:
+    inset 0 2px 8px rgb(0 0 0 / 0.22),
+    0 0 22px color-mix(in srgb, var(--tint) 55%, transparent);
+}
