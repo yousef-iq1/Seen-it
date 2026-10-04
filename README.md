@@ -5,10 +5,10 @@ Seen It is a bilingual movie and TV discovery application that learns from user 
 ## Highlights
 
 - Personalized swipe-based recommendation flow
-- Large catalog hosted separately for fast search and ranking
+- Large local catalog for fast search and ranking
 - Responsive mobile-first interface
 - Arabic and English with RTL/LTR support
-- Email/password accounts with Supabase Auth and cross-device sync
+- Supabase authentication and cross-device sync
 - Public profiles and shareable lists
 - Installable PWA with offline-friendly fallbacks
 - Server-side ranking and search routes
@@ -42,13 +42,11 @@ npm start
 
 ## Supabase setup
 
-1. Create a Supabase project.
-2. Apply `supabase/SETUP.sql`.
-3. Deploy the protected registration function used for immediate email/password account creation.
-4. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to the web service.
-5. Host `catalog.json` and `overviews.json` in a public storage bucket and set `NEXT_PUBLIC_DATA_BASE_URL`.
-
-Account deletion is performed by an authenticated database RPC and does not require a privileged Supabase key in the web-service environment.
+1. Create a new Supabase project.
+2. Open the SQL editor and apply the migration files in `supabase/migrations` in filename order.
+3. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to the web service.
+4. Add the Supabase service-role key to the server environment as `SUPABASE_SECRET_KEY`. It is used only by the server-side account-deletion route.
+5. Configure Google as an authentication provider in the Supabase dashboard.
 
 ## Deployment
 
@@ -60,6 +58,7 @@ A Render blueprint is included in `render.yaml`. The site can also be deployed m
 
 ## Repository safety
 
-Do not commit `.env*` files, access tokens, passwords, or server-side secrets. Only the Supabase publishable key belongs in browser configuration.
+Do not commit `.env*` files, service-role keys, access tokens, passwords, or provider secrets. Public Supabase browser keys belong in the deployment environment rather than source files. The service-role key must remain server-only.
+
 
 For the full production setup, see `DEPLOYMENT.md`.
