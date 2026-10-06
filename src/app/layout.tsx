@@ -20,8 +20,23 @@ const BASE_PATH = process.env.BASE_PATH ?? "";
 export async function generateMetadata(): Promise<Metadata> {
     const t = await getTranslations("app");
     return {
-        title: { default: `${t("name")} — ${t("tagline")}`, template: `%s · ${t("name")}` },
+        metadataBase: new URL("https://seen-it-zae7.onrender.com"),
+        title: { default: `${t("name")} - ${t("tagline")}`, template: `%s | ${t("name")}` },
         description: t("tagline"),
+        openGraph: {
+            title: t("name"),
+            description: t("tagline"),
+            url: "https://seen-it-zae7.onrender.com",
+            siteName: t("name"),
+            type: "website",
+            images: ["/icon-512.png"],
+        },
+        twitter: {
+            card: "summary",
+            title: t("name"),
+            description: t("tagline"),
+            images: ["/icon-512.png"],
+        },
         manifest: `${BASE_PATH}/manifest.webmanifest`,
         icons: {
             icon: [
